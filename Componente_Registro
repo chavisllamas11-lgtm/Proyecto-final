@@ -1,0 +1,296 @@
+import React, { useState } from "react";
+import { Plus, Edit2, Trash2, X, Package, Tag } from "lucide-react";
+import "../Diseño/Diseño_Inventario.css";
+
+const emptyForm = {
+  name: "",
+  category: "Bebidas", // se inicializa con la primera categoría existente
+  price: "",
+  stock: "",
+  lowStockLimit: 10,
+};
+
+const Inventario = ({ products, setProducts, categories, setCategories }) => {
+  // Eliminamos el estado 'search' y el filtro; mostramos todos los productos.
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [editId, setEditId] = useState(null);
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+
+  const openAdd = () => {
+    const defaultCategory = categories.length > 0 ? categories[0] : "";
+    setForm({ ...emptyForm, category: defaultCategory });
+    setEditId(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (product) => {
+    setForm({
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      stock: product.stock,
+      lowStockLimit: product.lowStockLimit || 10,
+    });
+    setEditId(product.id);
+    setShowModal(true);
+  };
+
+  const handleDelete = (id) => {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleSubmit = () => {
+    if (!form.name || !form.price || !form.stock) return;
+    const price = parseFloat(form.price);
+    const stock = parseInt(form.stock);
+    const lowStockLimit = parseInt(form.lowStockLimit) || 10;
+
+    if (editId !== null) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === editId
+            ? { ...p, name: form.name, category: form.category, price, stock, lowStockLimit }
+            : p
+        )
+      );
+    } else {
+      const newId = products.length
+        ? Math.max(...products.map((p) => p.id)) + 1
+        : 1;
+      setProducts((prev) => [
+        ...prev,
+        {
+          id: newId,
+          name: form.name,
+          category: form.category,
+          price,
+          stock,
+          lowStockLimit,
+        },
+      ]);
+    }
+    setShowModal(false);
+    setForm(emptyForm);
+    setEditId(null);
+  };
+
+  const handleAddCategory = () => {
+    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
+      setCategories((prev) => [...prev, newCategory.trim()]);
+      setNewCategory("");
+      setShowCategoryInput(false);
+    }
+  };
+
+  const stockClass = (product) => {
+    const limit = product.lowStockLimit || 10;
+    if (product.stock <= limit) return "badge badge-low";
+    if (product.stock <= limit * 2.5) return "badge badge-mid";
+    return "badge badge-ok";
+  };
+
+  const lowStockCount = products.filter(
+    (p) => p.stock <= (p.lowStockLimit || 10)
+  ).length;
+
+  return (
+    <div className="inv-wrapper">
+      <div className="inv-header">
+        <div className="inv-title-row">
+          <Package size={24} className="inv-icon" />
+          <h1 className="inv-title">Inventario</h1>
+        </div>
+        <div className="inv-actions">
+          {/* Barra de búsqueda eliminada */}
+          <button className="btn-add" onClick={openAdd}>
+            <Plus size={18} />
+            Agregar Producto
+          </button>
+        </div>
+      </div>
+
+      <div className="inv-stats">
+        <div className="stat-card">
+          <span className="stat-label">Total productos</span>
+          <span className="stat-value">{products.length}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Stock bajo</span>
+          <span className="stat-value stat-warn">{lowStockCount}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Categorías</span>
+          <span className="stat-value">
+            {[...new Set(products.map((p) => p.category))].length}
+          </span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Unidades totales</span>
+          <span className="stat-value">
+            {products.reduce((acc, p) => acc + p.stock, 0)}
+          </span>
+        </div>
+      </div>
+
+      <div className="inv-table-card">
+        <table className="inv-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre del Producto</th>
+              <th>Categoría</th>
+              <th>Precio</th>
+              <th>Stock</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="inv-empty">
+                  No se encontraron productos.
+                </td>
+              </tr>
+            ) : (
+              products.map((p, i) => (
+                <tr key={p.id}>
+                  <td className="inv-num">{i + 1}</td>
+                  <td className="inv-name">{p.name}</td>
+                  <td>
+                    <span className="category-pill">{p.category}</span>
+                  </td>
+                  <td className="inv-price">${p.price.toFixed(2)}</td>
+                  <td>
+                    <span className={stockClass(p)}>{p.stock} uds.</span>
+                  </td>
+                  <td>
+                    <div className="action-btns">
+                      <button className="action-btn edit" onClick={() => openEdit(p)} title="Editar">
+                        <Edit2 size={15} />
+                      </button>
+                      <button className="action-btn delete" onClick={() => handleDelete(p.id)} title="Eliminar">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                {editId !== null ? "Editar Producto" : "Agregar Producto"}
+              </h2>
+              <button className="modal-close" onClick={() => setShowModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Nombre del producto</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Capuchino"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Categoría</label>
+                <div className="category-select-row">
+                  <select
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                    {categories.length === 0 && <option value="">Sin categorías</option>}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn-add-category"
+                    onClick={() => setShowCategoryInput(!showCategoryInput)}
+                    title="Agregar categoría"
+                  >
+                    <Tag size={16} />
+                  </button>
+                </div>
+                {showCategoryInput && (
+                  <div className="new-category-input">
+                    <input
+                      type="text"
+                      placeholder="Nueva categoría"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                    />
+                    <button type="button" className="btn-confirm" onClick={handleAddCategory}>
+                      Agregar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Precio ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Stock (unidades)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Límite para stock bajo</label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="10"
+                  value={form.lowStockLimit}
+                  onChange={(e) => setForm({ ...form, lowStockLimit: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowModal(false)}>
+                Cancelar
+              </button>
+              <button className="btn-confirm" onClick={handleSubmit}>
+                {editId !== null ? "Guardar cambios" : "Agregar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Inventario;
